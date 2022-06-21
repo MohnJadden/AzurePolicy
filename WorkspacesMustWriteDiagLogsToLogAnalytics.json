@@ -1,0 +1,153 @@
+{
+    "properties": {
+      "displayName": "Workspaces must write diagnostic logs to Log Analytics",
+      "policyType": "Custom",
+      "mode": "All",
+      "parameters": {
+        "effect": {
+          "type": "String",
+          "metadata": {
+            "displayName": "Effect",
+            "description": "Enable or disable the execution of the policy"
+          },
+          "allowedValues": [
+            "DeployIfNotExists",
+            "Disabled"
+          ],
+          "defaultValue": "DeployIfNotExists"
+        },
+        "profileName": {
+          "type": "String",
+          "metadata": {
+            "displayName": "Profile name",
+            "description": "The diagnostic settings profile name"
+          },
+          "defaultValue": "setbypolicy_logAnalytics"
+        },
+        "logAnalytics": {
+          "type": "String",
+          "metadata": {
+            "displayName": "Log Analytics workspace",
+            "description": "Select Log Analytics workspace from dropdown list. If this workspace is outside of the scope of the assignment you must manually grant 'Log Analytics Contributor' permissions (or similar) to the policy assignment's principal ID.",
+            "strongType": "omsWorkspace",
+            "assignPermissions": true
+          }
+        }
+      },
+      "policyRule": {
+        "if": {
+          "field": "type",
+          "equals": "Microsoft.DesktopVirtualization/workspaces"
+        },
+        "then": {
+          "effect": "[parameters('effect')]",
+          "details": {
+            "type": "Microsoft.Insights/diagnosticSettings",
+            "existenceCondition": {
+              "allof": [
+                {
+                  "count": {
+                    "field": "Microsoft.Insights/diagnosticSettings/logs[*]",
+                    "where": {
+                      "allof": [
+                        {
+                          "field": "Microsoft.Insights/diagnosticSettings/logs[*].Category",
+                          "in": [
+                            "Checkpoint",
+                            "Error",
+                            "Feed",
+                            "Management"
+                          ]
+                        },
+                        {
+                          "field": "Microsoft.Insights/diagnosticSettings/logs[*].Enabled",
+                          "equals": true
+                        }
+                      ]
+                    }
+                  },
+                  "Equals": 4
+                },
+                {
+                  "field": "Microsoft.Insights/diagnosticSettings/workspaceId",
+                  "exists": true
+                }
+              ]
+            },
+            "roleDefinitionIds": [
+              "/providers/microsoft.authorization/roleDefinitions/b24988ac-6180-42a0-ab88-20f7382dd24c"
+            ],
+            "deployment": {
+              "properties": {
+                "mode": "incremental",
+                "template": {
+                  "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+                  "contentVersion": "1.0.0.0",
+                  "parameters": {
+                    "workspaceName": {
+                      "type": "string"
+                    },
+                    "logAnalytics": {
+                      "type": "string"
+                    },
+                    "profileName": {
+                      "type": "string"
+                    }
+                  },
+                  "variables": {},
+                  "resources": [
+                    {
+                      "type": "Microsoft.DesktopVirtualization/workspaces/providers/diagnosticSettings",
+                      "apiVersion": "2017-05-01-preview",
+                      "name": "[concat(parameters('workspaceName'), '/', 'Microsoft.Insights/', parameters('profileName'))]",
+                      "dependsOn": [],
+                      "properties": {
+                        "workspaceId": "[parameters('logAnalytics')]",
+                        "logAnalyticsDestinationType": "Dedicated",
+                        "metrics": [],
+                        "logs": [
+                          {
+                            "category": "Checkpoint",
+                            "enabled": true
+                          },
+                          {
+                            "category": "Error",
+                            "enabled": true
+                          },
+                          {
+                            "category": "Feed",
+                            "enabled": true
+                          },
+                          {
+                            "category": "Management",
+                            "enabled": true
+                          }
+                        ]
+                      }
+                    }
+                  ],
+                  "outputs": {
+                    "policy": {
+                      "type": "string",
+                      "value": "[concat(parameters('logAnalytics'), 'configured for resource logs for ', ': ', parameters('workspaceName'), '/', 'Microsoft.Insights/', parameters('profileName'))]"
+                    }
+                  }
+                },
+                "parameters": {
+                  "logAnalytics": {
+                    "value": "[parameters('logAnalytics')]"
+                  },
+                  "workspaceName": {
+                    "value": "[field('name')]"
+                  },
+                  "profileName": {
+                    "value": "[parameters('profileName')]"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
