@@ -1,0 +1,125 @@
+{
+  "properties": {
+    "displayName": "VM Idle Shutdown Alert Rule",
+    "policyType": "Custom",
+    "mode": "Indexed",
+    "description": "Deploys an Azure Monitor Alert Rule that automatically powers off VMs when CPU and network bandwidth drop below idle thresholds.",
+    "parameters": {},
+    "policyRule": {
+      "if": {
+        "allOf": [
+          {
+            "field": "type",
+            "equals": "Microsoft.Compute/virtualMachines"
+          },
+          {
+            "field": "name",
+            "like": "%namingConvention"
+          }
+        ]
+      },
+      "then": {
+        "effect": "deployIfNotExists",
+        "details": {
+          "type": "Microsoft.Insights/metricAlerts",
+          "roleDefinitionIds": [
+            "/providers/Microsoft.Authorization/roleDefinitions/b24988ac-6180-42a0-ab88-20f7382dd24c"
+          ],
+          "existenceScope": "subscription",
+          "existenceCondition": {
+            "allOf": [
+              {
+                "field": "Microsoft.Insights/metricalerts/enabled",
+                "equals": "true"
+              },
+              {
+                "field": "Microsoft.Insights/metricalerts/targetResourceType",
+                "equals": "Microsoft.Compute/virtualMachines"
+              },
+              {
+                "field": "Microsoft.Insights/metricalerts/scopes[*]",
+                "equals": "[concat('/subscriptions/', subscription().subscriptionId, '/resourcegroups/', resourceGroup().name, '/providers/Microsoft.Compute/virtualMachines/', field('name'))]"
+              }
+            ]
+          },
+          "deployment": {
+            "properties": {
+              "mode": "Incremental",
+              "parameters": {
+                "machineName": {
+                  "value": "[field('Name')]"
+                }
+              },
+              "template": {
+                "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+                "contentVersion": "1.0.0.0",
+                "parameters": {
+                  "machineName": {
+                    "type": "String"
+                  }
+                },
+                "variables": {
+                  "actionGroup": "/subscriptions/3f51eae4-8db3-468d-a09d-cb67d67630b4/resourceGroups/hmi-admin-rg/providers/microsoft.insights/actionGroups/ShutdownVMWhenIdle"
+                },
+                "resources": [
+                  {
+                    "name": "[concat(parameters('machineName'),' - idle alert')]",
+                    "type": "Microsoft.Insights/metricAlerts",
+                    "location": "global",
+                    "apiVersion": "2018-03-01",
+                    "properties": {
+                      "description": "Shuts down VMs when CPU, network, and disk I/O are all below threshold during after-hours time periods",
+                      "severity": 3,
+                      "enabled": true,
+                      "scopes": [
+                        "[concat('/subscriptions/', subscription().subscriptionId, '/resourcegroups/', resourceGroup().name, '/providers/Microsoft.Compute/virtualMachines/', parameters('machineName'))]"
+                      ],
+                      "targetResourceType": "Microsoft.Compute/virtualMachines",
+                      "evaluationFrequency": "PT15M",
+                      "windowSize": "PT30M",
+                      "criteria": {
+                        "odata.type": "Microsoft.Azure.Monitor.SingleResourceMultipleMetricCriteria",
+                        "allOf": [
+                          {
+                            "threshold": 10,
+                            "name": "Metric1",
+                            "metricNamespace": "Microsoft.Compute/virtualMachines",
+                            "metricName": "Percentage CPU",
+                            "operator": "LessThan",
+                            "timeAggregation": "Average",
+                            "criterionType": "StaticThresholdCriterion"
+                          },
+                          {
+                            "threshold": 5000000,
+                            "name": "Metric2",
+                            "metricNamespace": "Microsoft.Compute/virtualMachines",
+                            "metricName": "Network In Total",
+                            "operator": "LessThanOrEqual",
+                            "timeAggregation": "Average",
+                            "criterionType": "StaticThresholdCriterion"
+                          }
+                        ]
+                      },
+                      "actions": [
+                        {
+                          "actionGroupId": "[variables('actionGroup')]",
+                          "webHookProperties": {}
+                        }
+                      ]
+                    }
+                  }
+                ],
+                "outputs": {
+                  "machineNameResult": {
+                    "type": "string",
+                    "value": "[parameters('machineName')]"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
