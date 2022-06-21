@@ -1,0 +1,52 @@
+{
+    "properties": {
+      "displayName": "Require a DepartmentName tag with Specific Department Name value",
+      "policyType": "Custom",
+      "mode": "All",
+      "description": "All resource groups must have a DepartmentName tag.  The tag value should come from Finance's master list of departments.",
+      "parameters": {
+        "tagName": {
+          "type": "String",
+          "metadata": {
+            "displayName": "DepartmentName tag",
+            "description": "The DepartmentName tag key. Cannot be changed from DepartmentName."
+          },
+          "allowedValues": [
+            "DepartmentName"
+          ],
+          "defaultValue": "DepartmentName"
+        },
+        "tagValue": {
+          "type": "Array",
+          "metadata": {
+            "displayName": "DepartmentName value",
+            "description": "The actual name of the department."
+          },
+          "allowedValues": [
+"Comma delimited",
+"List of department names",
+"If you want to use a different source of truth",
+"Change the departmentName value in tagName/displayName,allowedValues,etc. to whatever you want to name the tag key",
+"And list the allowed tag values here"
+          ]
+        }
+      },
+      "policyRule": {
+        "if": {
+          "allOf": [
+            {
+              "field": "type",
+              "equals": "Microsoft.Resources/subscriptions/resourceGroups"
+            },
+            {
+              "field": "[concat('tags[', parameters('tagName'), ']')]",
+              "notIn": "[parameters('tagValue')]"
+            }
+          ]
+        },
+        "then": {
+          "effect": "deny"
+        }
+      }
+    }
+  }
